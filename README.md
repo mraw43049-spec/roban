@@ -1,15 +1,37 @@
-# Gorbaw Telegram Bot — Railway-ready
+# Gorbaw Telegram Bot — Railway-ready v2
 
-This version is intentionally **flat**: it does not import an `app` package, so it avoids `ModuleNotFoundError: No module named 'app'` when deployed on Railway.
+This version keeps the original Railway structure and turns the main menu into working bot flows.
 
-## Railway settings
-- Root Directory: **empty** (repository root)
+## Implemented
+- User registration, profile, XP and levels
+- Daily reward and mission progress/claim
+- Coin balance and atomic user-to-user transfer
+- Virtual Ruby Point purchases
+- Market packages
+- Factory production and upgrades
+- Virtual bank loan and repayment
+- Wheel of chance using virtual coins only
+- Dice and playable single-player Tic-Tac-Toe
+- Fun football simulation using virtual XP only
+- Virtual inventory / insect collection
+- Raffle entry flow (free, virtual)
+- Pairing/production flow
+- Admin coin management and user lookup
+- Frame shop foundation: buy once, permanent ownership, activate/deactivate
+
+## Frames
+Frame records are seeded in the database with placeholder asset paths:
+- frames/fire.gif
+- frames/royal.gif
+- frames/lightning.gif
+
+Replace these placeholders with the actual frame assets later. The ownership/active-state database logic is already in place.
+
+## Railway
+- Root Directory: repository root
 - Start Command: `python main.py`
-- Variable: `BOT_TOKEN` = your Telegram bot token
-- Optional: `ADMIN_IDS` = comma-separated Telegram user IDs
-- Optional: `DB_PATH` = `/data/gorbaw.sqlite3` if a persistent volume is mounted; otherwise the bot falls back to `gorbaw.sqlite3`.
+- `BOT_TOKEN` is required
+- `ADMIN_IDS` is optional and accepts comma-separated Telegram user IDs
+- `DB_PATH` can be `/data/gorbaw.sqlite3` when a persistent Railway volume is mounted
 
-## GitHub
-Upload/commit **all files and folders in this ZIP** to the repository root. Do not upload only `main.py`.
-
-Never put your real `BOT_TOKEN` in GitHub.
+Never commit a real `BOT_TOKEN` to GitHub.

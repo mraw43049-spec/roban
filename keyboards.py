@@ -1,3 +1,4 @@
+
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 def main_menu():
@@ -15,12 +16,100 @@ def main_menu():
         ("🔄 چرخ شانس","wheel"),("🏅 ماموریت‌ها","missions"),
     ]
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=items[i][0],callback_data=items[i][1]),
-         InlineKeyboardButton(text=items[i+1][0],callback_data=items[i+1][1])]
-        for i in range(0,len(items),2)
+        [InlineKeyboardButton(text=items[i][0], callback_data=items[i][1]),
+         InlineKeyboardButton(text=items[i+1][0], callback_data=items[i+1][1])]
+        for i in range(0, len(items), 2)
     ])
 
 def back_menu():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 بازگشت به منو",callback_data="menu")]
+        [InlineKeyboardButton(text="🔙 بازگشت به منو", callback_data="menu")]
     ])
+
+def smuggle_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🖼 قابچی روبی", callback_data="market_frames")],
+        [InlineKeyboardButton(text="🔙 بازگشت به منو", callback_data="menu")]
+    ])
+
+def level_kb():
+    return back_menu()
+
+def daily_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎁 دریافت جایزه", callback_data="daily_claim")],
+        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+    ])
+
+def missions_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎁 دریافت پاداش ماموریت", callback_data="mission_claim")],
+        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+    ])
+
+def market_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🪙 بسته کوچک", callback_data="buy_item:small"),
+         InlineKeyboardButton(text="💎 بسته بزرگ", callback_data="buy_item:large")],
+        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+    ])
+
+def frame_kb(frames):
+    rows = []
+    for f in frames:
+        if f["owned"]:
+            action = ("🟢 فعال" if f["owned_active"] else "⚪ فعال‌سازی",
+                      f"frame_off:{f['id']}" if f["owned_active"] else f"frame_set:{f['id']}")
+            rows.append([InlineKeyboardButton(text=f"🖼 {f['name']} — {action[0]}", callback_data=action[1])])
+        else:
+            rows.append([InlineKeyboardButton(text=f"🖼 {f['name']} • {f['price']} سکه", callback_data=f"frame_buy:{f['id']}")])
+    rows.append([InlineKeyboardButton(text="🖼 قاب‌های من", callback_data="my_frames")])
+    rows.append([InlineKeyboardButton(text="🔙 منو", callback_data="menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+def frame_owned_kb(frames):
+    rows=[]
+    for f in frames:
+        if f["owned"]:
+            label = "🟢 فعال" if f["active"] else "⚪ فعال‌سازی"
+            rows.append([InlineKeyboardButton(text=f"{f['name']} — {label}", callback_data=f"frame_set:{f['id']}" if not f["active"] else f"frame_off:{f['id']}")])
+    rows.append([InlineKeyboardButton(text="🛒 فروشگاه قاب‌ها", callback_data="market_frames")])
+    rows.append([InlineKeyboardButton(text="🔙 منو", callback_data="menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+def loan_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💰 درخواست وام ۱۰۰۰", callback_data="loan_take")],
+        [InlineKeyboardButton(text="💳 بازپرداخت وام", callback_data="loan_repay")],
+        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+    ])
+
+def points_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🧸 تبدیل ۱۰۰۰ سکه → ۱۰ پوینت", callback_data="points_buy")],
+        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+    ])
+
+def factory_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚡ تولید", callback_data="factory_collect")],
+        [InlineKeyboardButton(text="⬆️ ارتقای کارخانه", callback_data="factory_upgrade")],
+        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+    ])
+
+def wheel_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 چرخاندن", callback_data="wheel_spin")],
+        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+    ])
+
+def ttt_kb(board):
+    rows=[]
+    for r in range(3):
+        row=[]
+        for c in range(3):
+            v=board[r*3+c]
+            row.append(InlineKeyboardButton(text=v or "·", callback_data=f"ttt:{r*3+c}"))
+        rows.append(row)
+    rows.append([InlineKeyboardButton(text="🔙 منو", callback_data="menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
