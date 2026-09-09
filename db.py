@@ -1,8 +1,5 @@
 import aiosqlite
-try:
-    from app.config import DB_PATH
-except ModuleNotFoundError:
-    from config import DB_PATH
+from config import DB_PATH
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users(

@@ -1,34 +1,15 @@
-# Gorbaw Bot 🦊
-بات تلگرامی فارسی با منوی دو ستونه شبیه نمونه ارسالی.
+# Gorbaw Telegram Bot — Railway-ready
 
-## امکانات
-شروع و دستورات، سطح کاربران، روبی و تولید، حشرات و یخچال، بانک و انتقال، شهر روبی 🦊، بازی‌ها، پیش‌بینی فوتبال بدون پول واقعی، کارخانه، زندان و ضداسپم، نوشتن مبالغ، تیم مدیریت، وام بانکی مجازی، قاچاق روبی، بازی دوز، مارکت روبی 🦊، رافل تفریحی، جفت‌سازی و تولید، روبی پوینت، جایزه روزانه، چرخ شانس و ماموریت‌ها.
+This version is intentionally **flat**: it does not import an `app` package, so it avoids `ModuleNotFoundError: No module named 'app'` when deployed on Railway.
 
-## اجرا
-```bash
-pip install -r requirements.txt
-export BOT_TOKEN="YOUR_BOT_TOKEN"
-python -m app.main
-```
-
-## Railway
-پروژه را در GitHub قرار بده، در Railway از GitHub Deploy کن و متغیر `BOT_TOKEN` را بساز.
-Start Command:
-```bash
-python -m app.main
-```
-برای نگهداری دائمی SQLite در Railway یک Volume روی `/data` وصل کن.
-
-## دستورات
-/start /menu /help /profile /daily /missions /level /market /bank /factory /dice /tictactoe /raffle /wheel /pay
-
-
-## Railway deployment
-
-The project supports both repository-root and `app/` Root Directory deployments.
-Recommended Railway settings:
-- Root Directory: leave empty (repository root)
+## Railway settings
+- Root Directory: **empty** (repository root)
 - Start Command: `python main.py`
-- Variables: `BOT_TOKEN` (required), optionally `ADMIN_IDS` and `DB_PATH`
+- Variable: `BOT_TOKEN` = your Telegram bot token
+- Optional: `ADMIN_IDS` = comma-separated Telegram user IDs
+- Optional: `DB_PATH` = `/data/gorbaw.sqlite3` if a persistent volume is mounted; otherwise the bot falls back to `gorbaw.sqlite3`.
 
-If you previously set Root Directory to `app`, the updated imports also support that layout.
+## GitHub
+Upload/commit **all files and folders in this ZIP** to the repository root. Do not upload only `main.py`.
+
+Never put your real `BOT_TOKEN` in GitHub.
