@@ -1,5 +1,12 @@
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from config import REQUIRED_CHANNEL_URL
+
+def join_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📢 عضویت در کانال", url=REQUIRED_CHANNEL_URL)],
+        [InlineKeyboardButton(text="✅ عضو شدم", callback_data="check_join")]
+    ])
 
 def main_menu():
     items = [

@@ -8,6 +8,7 @@ from handlers.economy import router as economy_router
 from handlers.games import router as games_router
 from handlers.admin import router as admin_router
 from handlers.hunting import router as hunting_router
+from middlewares import ForceJoinMiddleware
 
 class UserMiddleware(BaseMiddleware):
     async def __call__(self, handler, event, data):
@@ -24,6 +25,8 @@ async def main():
     dp = Dispatcher()
     dp.message.middleware(UserMiddleware())
     dp.callback_query.middleware(UserMiddleware())
+    dp.message.middleware(ForceJoinMiddleware())
+    dp.callback_query.middleware(ForceJoinMiddleware())
     dp.include_router(menu_router)
     dp.include_router(economy_router)
     dp.include_router(games_router)
