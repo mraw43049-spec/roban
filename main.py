@@ -7,6 +7,7 @@ from handlers.menu import router as menu_router
 from handlers.economy import router as economy_router
 from handlers.games import router as games_router
 from handlers.admin import router as admin_router
+from handlers.hunting import router as hunting_router
 
 class UserMiddleware(BaseMiddleware):
     async def __call__(self, handler, event, data):
@@ -26,6 +27,7 @@ async def main():
     dp.include_router(menu_router)
     dp.include_router(economy_router)
     dp.include_router(games_router)
+    dp.include_router(hunting_router)
     dp.include_router(admin_router)
     await bot.delete_webhook(drop_pending_updates=True)
     print("Gorbaw bot is running", flush=True)

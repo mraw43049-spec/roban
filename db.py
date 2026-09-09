@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS users(
  loan_due INTEGER DEFAULT 0,
  factory_level INTEGER DEFAULT 1,
  factory_last INTEGER DEFAULT 0,
+ last_hoohoo INTEGER DEFAULT 0,
+ hoohoo_count INTEGER DEFAULT 0,
+ last_hunt INTEGER DEFAULT 0,
  created_at INTEGER DEFAULT (strftime('%s','now'))
 );
 
@@ -84,6 +87,9 @@ async def init_db():
             "loan_due": "ALTER TABLE users ADD COLUMN loan_due INTEGER DEFAULT 0",
             "factory_level": "ALTER TABLE users ADD COLUMN factory_level INTEGER DEFAULT 1",
             "factory_last": "ALTER TABLE users ADD COLUMN factory_last INTEGER DEFAULT 0",
+            "last_hoohoo": "ALTER TABLE users ADD COLUMN last_hoohoo INTEGER DEFAULT 0",
+            "hoohoo_count": "ALTER TABLE users ADD COLUMN hoohoo_count INTEGER DEFAULT 0",
+            "last_hunt": "ALTER TABLE users ADD COLUMN last_hunt INTEGER DEFAULT 0",
         }
         for col, sql in migrations.items():
             if col not in existing:
@@ -229,3 +235,45 @@ async def claim_mission(uid, mission, reward):
         await db.execute("UPDATE users SET coins=coins+? WHERE user_id=?",(reward,uid))
         await db.commit()
         return True
+
+async def register_hoohoo(uid, ts):
+    """Register a new hoohoo claim and return the total hoohoo count for the user."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET last_hoohoo=?, hoohoo_count=hoohoo_count+1 WHERE user_id=?",
+            (ts, uid)
+        )
+        await db.commit()
+        row = await (await db.execute("SELECT hoohoo_count FROM users WHERE user_id=?", (uid,))).fetchone()
+        return row[0] if row else 0
+
+async def set_hunt_time(uid, ts):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET last_hunt=? WHERE user_id=?", (ts, uid))
+        await db.commit()
+
+async def level_up_to_next(uid):
+    """Bump the user exactly one level (consistent with level=1+xp//100) and return the new level."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        row = await (await db.execute("SELECT xp, level FROM users WHERE user_id=?", (uid,))).fetchone()
+        if not row:
+            return None
+        target_xp = row["level"] * 100
+        add = target_xp - row["xp"]
+        if add < 1:
+            add = 100
+        new_xp = row["xp"] + add
+        new_level = 1 + new_xp // 100
+        await db.execute("UPDATE users SET xp=?, level=? WHERE user_id=?", (new_xp, new_level, uid))
+        await db.commit()
+        return new_level
+
+async def add_inventory_item(uid, item, qty=1):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """INSERT INTO inventory(user_id,item,quantity) VALUES(?,?,?)
+               ON CONFLICT(user_id,item) DO UPDATE SET quantity=quantity+?""",
+            (uid, item, qty, qty)
+        )
+        await db.commit()

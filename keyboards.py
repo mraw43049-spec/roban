@@ -14,6 +14,7 @@ def main_menu():
         ("👑 رافل","raffle"),("🆚 جفت‌سازی و تولید","marriage"),
         ("🧸 خرید روبی پوینت","points"),("🔔 جایزه روزانه","daily"),
         ("🔄 چرخ شانس","wheel"),("🏅 ماموریت‌ها","missions"),
+        ("🦊 هوهو (روب پوینت)","hoohoo"),("🏹 شکار","hunt"),
     ]
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=items[i][0], callback_data=items[i][1]),
@@ -100,6 +101,14 @@ def factory_kb():
 def wheel_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔄 چرخاندن", callback_data="wheel_spin")],
+        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+    ])
+
+def catch_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🧊 گذاشتن در یخچال روبی", callback_data="catch:fridge")],
+        [InlineKeyboardButton(text="🦊 دادن به روباه", callback_data="catch:fox")],
+        [InlineKeyboardButton(text="💰 فروختن", callback_data="catch:sell")],
         [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
     ])
 
