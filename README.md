@@ -21,3 +21,14 @@ python -m app.main
 
 ## دستورات
 /start /menu /help /profile /daily /missions /level /market /bank /factory /dice /tictactoe /raffle /wheel /pay
+
+
+## Railway deployment
+
+The project supports both repository-root and `app/` Root Directory deployments.
+Recommended Railway settings:
+- Root Directory: leave empty (repository root)
+- Start Command: `python main.py`
+- Variables: `BOT_TOKEN` (required), optionally `ADMIN_IDS` and `DB_PATH`
+
+If you previously set Root Directory to `app`, the updated imports also support that layout.

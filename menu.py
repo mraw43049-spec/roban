@@ -1,8 +1,17 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from app.keyboards import main_menu, back_menu
-from app.texts import MENU_TEXT, SECTIONS, profile_text
-from app.db import get_user
+try:
+    from app.keyboards import main_menu, back_menu
+except ModuleNotFoundError:
+    from keyboards import main_menu, back_menu
+try:
+    from app.texts import MENU_TEXT, SECTIONS, profile_text
+except ModuleNotFoundError:
+    from texts import MENU_TEXT, SECTIONS, profile_text
+try:
+    from app.db import get_user
+except ModuleNotFoundError:
+    from db import get_user
 
 router = Router()
 

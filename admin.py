@@ -1,7 +1,10 @@
 import os
 from aiogram import Router, F
 from aiogram.types import Message
-from app.db import change_coins
+try:
+    from app.db import change_coins
+except ModuleNotFoundError:
+    from db import change_coins
 
 router=Router()
 ADMIN_IDS={int(x) for x in os.getenv("ADMIN_IDS","").split(",") if x.strip().isdigit()}

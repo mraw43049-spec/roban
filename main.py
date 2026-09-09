@@ -1,34 +1,5 @@
-import asyncio
-from aiogram import Bot, Dispatcher, BaseMiddleware
-from app.config import BOT_TOKEN
-from app.db import init_db, ensure_user
-from app.handlers.menu import router as menu_router
-from app.handlers.economy import router as economy_router
-from app.handlers.games import router as games_router
-from app.handlers.admin import router as admin_router
+from app.main import main
 
-class UserMiddleware(BaseMiddleware):
-    async def __call__(self, handler, event, data):
-        user=data.get("event_from_user")
-        if user:
-            await ensure_user(user)
-        return await handler(event,data)
-
-async def main():
-    if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN environment variable is not set.")
-    await init_db()
-    bot=Bot(BOT_TOKEN)
-    dp=Dispatcher()
-    dp.message.middleware(UserMiddleware())
-    dp.callback_query.middleware(UserMiddleware())
-    dp.include_router(menu_router)
-    dp.include_router(economy_router)
-    dp.include_router(games_router)
-    dp.include_router(admin_router)
-    await bot.delete_webhook(drop_pending_updates=True)
-    print("Gorbaw bot is running")
-    await dp.start_polling(bot)
-
-if __name__=="__main__":
+if __name__ == '__main__':
+    import asyncio
     asyncio.run(main())

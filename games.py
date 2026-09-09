@@ -1,7 +1,13 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from app.db import update_xp
-from app.keyboards import back_menu
+try:
+    from app.db import update_xp
+except ModuleNotFoundError:
+    from db import update_xp
+try:
+    from app.keyboards import back_menu
+except ModuleNotFoundError:
+    from keyboards import back_menu
 
 router=Router()
 
