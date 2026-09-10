@@ -1,37 +1,22 @@
-# Gorbaw Telegram Bot — Railway-ready v2
+# Gorbaw Telegram Bot
 
-This version keeps the original Railway structure and turns the main menu into working bot flows.
+## Railway variables
+- `BOT_TOKEN` = توکن ربات
+- `REQUIRED_CHANNEL` = کانال اجباری، مثلاً `@fox_frenzy`
+- `REQUIRED_CHANNEL_URL` = لینک عضویت، مثلاً `https://t.me/fox_frenzy`
+- `ADMIN_IDS` = مدیرهای اضافه با کاما؛ مدیر اصلی `7287316708` است.
+- `DB_PATH` = اختیاری؛ در Railway بهتر است `/data/gorbaw.sqlite3` باشد و Volume به `/data` وصل شود.
 
-## Implemented
-- User registration, profile, XP and levels
-- Daily reward and mission progress/claim
-- Coin balance and atomic user-to-user transfer
-- Virtual Ruby Point purchases
-- Market packages
-- Factory production and upgrades
-- Virtual bank loan and repayment
-- Wheel of chance using virtual coins only
-- Dice and playable single-player Tic-Tac-Toe
-- Fun football simulation using virtual XP only
-- Virtual inventory / insect collection
-- Raffle entry flow (free, virtual)
-- Pairing/production flow
-- Admin coin management and user lookup
-- Frame shop foundation: buy once, permanent ownership, activate/deactivate
+## نکته مهم عضویت اجباری
+ربات باید در کانال اجباری **عضو و ترجیحاً Administrator** باشد تا Bot API بتواند عضویت کاربران را با `getChatMember` بررسی کند. اگر ربات دسترسی لازم به کانال نداشته باشد، هیچ کدی نمی‌تواند عضویت کاربر را به‌طور قابل اعتماد تأیید کند.
 
-## Frames
-Frame records are seeded in the database with placeholder asset paths:
-- frames/fire.gif
-- frames/royal.gif
-- frames/lightning.gif
-
-Replace these placeholders with the actual frame assets later. The ownership/active-state database logic is already in place.
-
-## Railway
-- Root Directory: repository root
-- Start Command: `python main.py`
-- `BOT_TOKEN` is required
-- `ADMIN_IDS` is optional and accepts comma-separated Telegram user IDs
-- `DB_PATH` can be `/data/gorbaw.sqlite3` when a persistent Railway volume is mounted
-
-Never commit a real `BOT_TOKEN` to GitHub.
+## قابلیت‌های اصلاح‌شده
+- ثبت خودکار همه کاربران قبل از اجرای Handler
+- عضویت اجباری با بررسی تازه بعد از «عضو شدم» و بدون کش منفی
+- پنل مدیریت کاملاً فارسی و دکمه‌ای
+- مدیریت سکه، روب‌پوینت و لول برای هر شناسه عددی، حتی حساب مدیر
+- آمار کامل‌تر ربات
+- انتقال روب‌پوینت از لول ۲ با سقف ۵۰۰٬۰۰۰ و تأیید/لغو ۶۰ ثانیه‌ای
+- شکار با مهلت تصمیم‌گیری ۶۰ ثانیه
+- محدودسازی دکمه‌های هر پیام به کاربر صاحب همان پیام
+- پاسخ‌های ربات با Reply به پیام کاربر در همان چت

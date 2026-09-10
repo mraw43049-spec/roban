@@ -114,6 +114,17 @@ async def get_user(uid):
         db.row_factory = aiosqlite.Row
         return await (await db.execute("SELECT * FROM users WHERE user_id=?", (uid,))).fetchone()
 
+async def ensure_user_id(uid):
+    """Create a minimal account so management can edit any numeric Telegram ID."""
+    uid = int(uid)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO users(user_id,username,first_name,factory_last) VALUES(?,?,?,?)",
+            (uid, "", "", int(time.time()))
+        )
+        await db.commit()
+
+
 async def change_coins(uid, amount):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE users SET coins=coins+? WHERE user_id=?", (amount, uid))
@@ -195,15 +206,17 @@ async def bot_stats():
     async with aiosqlite.connect(DB_PATH) as db:
         row = await (await db.execute("""
             SELECT COUNT(*), COALESCE(SUM(coins),0), COALESCE(SUM(points),0),
-                   COALESCE(MAX(level),1)
+                   COALESCE(MAX(level),1), COALESCE(SUM(hoohoo_count),0)
             FROM users
         """)).fetchone()
         frames = (await (await db.execute("SELECT COUNT(*) FROM user_frames")).fetchone())[0]
+        active_frames = (await (await db.execute("SELECT COUNT(*) FROM user_frames WHERE active=1")).fetchone())[0]
         inventory = (await (await db.execute("SELECT COALESCE(SUM(quantity),0) FROM inventory")).fetchone())[0]
         missions = (await (await db.execute("SELECT COUNT(*) FROM missions")).fetchone())[0]
         return {
             "users": row[0], "coins": row[1], "points": row[2], "max_level": row[3],
-            "frame_ownerships": frames, "inventory_items": inventory, "missions": missions
+            "hoohoo": row[4], "frame_ownerships": frames, "active_frames": active_frames,
+            "inventory_items": inventory, "missions": missions
         }
 
 async def list_frames(uid=None):

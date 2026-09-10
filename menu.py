@@ -6,6 +6,7 @@ from texts import MENU_TEXT, SECTIONS, profile_text
 from db import get_user, get_active_frame
 import aiosqlite
 from config import DB_PATH
+from middlewares import is_member, clear_membership_cache
 
 router = Router()
 STATIC_KEYS = {"help"}
@@ -31,9 +32,16 @@ async def menu_callback(call: CallbackQuery):
 
 @router.callback_query(F.data == "check_join")
 async def check_join_button(call: CallbackQuery):
-    # اگر به اینجا رسیده باشیم یعنی میان‌افزار ForceJoinMiddleware عضویت را تایید کرده
-    await call.answer("✅ عضویت شما تایید شد!")
-    await call.message.answer(MENU_TEXT, reply_markup=main_menu())
+    uid = call.from_user.id
+    clear_membership_cache(uid)
+    if not await is_member(call.bot, uid):
+        await call.answer("❌ هنوز عضو کانال نیستی. اول عضو شو و دوباره امتحان کن.", show_alert=True)
+        return
+    await call.answer("✅ عضویت تأیید شد!")
+    try:
+        await call.message.edit_text(MENU_TEXT, reply_markup=main_menu())
+    except Exception:
+        await call.message.answer(MENU_TEXT, reply_markup=main_menu())
 
 @router.callback_query(F.data.in_(STATIC_KEYS))
 async def section_callback(call: CallbackQuery):
