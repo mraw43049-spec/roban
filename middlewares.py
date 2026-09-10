@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 from config import REQUIRED_CHANNEL, REQUIRED_CHANNEL_URL
 from keyboards import join_kb
+from handlers.admin import admin as is_admin
 
 JOIN_TEXT = (
     "🔒 <b>عضویت اجباری</b>\n\n"
@@ -40,6 +41,9 @@ class ForceJoinMiddleware(BaseMiddleware):
         bot = data.get("bot")
 
         if not user or not bot:
+            return await handler(event, data)
+
+        if is_admin(user.id):
             return await handler(event, data)
 
         if await is_member(bot, user.id):
