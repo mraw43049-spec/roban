@@ -136,7 +136,7 @@ async def adm_user_action(call: CallbackQuery):
     await call.answer()
 
 
-@router.message(F.text)
+@router.message(F.func(lambda m: m.from_user.id in admin_sessions))
 async def admin_input(message: Message):
     uid = message.from_user.id
     if not is_admin(uid):
@@ -211,6 +211,17 @@ async def admin_input(message: Message):
             result = f"🏅 روب‌پوینت: {u['points']:,} ← {new_value:,}"
 
         admin_sessions.pop(uid, None)
+        # اطلاع‌رسانی مستقیم به کاربر هدف؛ حتی اگر مدیر خودش باشد.
+        try:
+            if kind == "level":
+                notice = f"🔔 <b>تغییر حساب کاربری</b>\n\n⭐ سطح شما توسط مدیریت از {u['level']} به {amount} تغییر کرد."
+            elif kind == "coins":
+                notice = f"🔔 <b>تغییر حساب کاربری</b>\n\n🪙 موجودی سکه شما توسط مدیریت تغییر کرد.\n{result}"
+            else:
+                notice = f"🔔 <b>تغییر حساب کاربری</b>\n\n🏅 موجودی روب‌پوینت شما توسط مدیریت تغییر کرد.\n{result}"
+            await message.bot.send_message(target_id, notice)
+        except Exception:
+            pass
         await message.answer("✅ تغییر با موفقیت انجام شد.\n" + result, reply_markup=admin_kb())
     except Exception:
         await message.answer("❌ مقدار واردشده صحیح نیست. دوباره با قالب درست وارد کن.")
