@@ -28,8 +28,9 @@ async def main():
     dp.include_router(economy_router)
     dp.include_router(games_router)
     dp.include_router(hunting_router)
-    dp.include_router(fox_ruby_router)
+    # مدیریت باید قبل از fox_ruby ثبت شود؛ fox_ruby یک handler عمومی F.text دارد.
     dp.include_router(admin_router)
+    dp.include_router(fox_ruby_router)
     await bot.delete_webhook(drop_pending_updates=True)
     print("Gorbaw bot is running", flush=True)
     try:
