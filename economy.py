@@ -183,7 +183,6 @@ async def bank_text(uid):
     )
 
 @router.callback_query(F.data == "bank")
-@router.callback_query(F.data == "bank")
 async def bank_button(call: CallbackQuery):
     await call.message.answer(await bank_text(call.from_user.id), reply_markup=back_menu())
     await call.answer()

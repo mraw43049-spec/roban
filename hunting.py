@@ -34,7 +34,7 @@ HUNT_COOLDOWN = 900              # 15 دقیقه
 HUNT_MIN_LEVEL = 2
 HUNT_SELL_PER_FOOD = 4           # روب پوینت به ازای هر واحد ارزش غذایی
 FOX_XP_PER_FOOD = 5
-CATCH_EXPIRE = 60               # 5 دقیقه فرصت برای تصمیم‌گیری
+CATCH_EXPIRE = 60               # ۶۰ ثانیه فرصت برای تصمیم‌گیری
 
 ANIMALS = [
     {"name": "خرگوش", "emoji": "🐇", "food": 2},
@@ -184,7 +184,7 @@ async def catch_decision(call: CallbackQuery):
 
     if not animal or int(time.time()) - animal["ts"] > CATCH_EXPIRE:
         pending_catches.pop(uid, None)
-        await call.message.answer("⌛ زمان تصمیم‌گیری برای این شکار تموم شده.", reply_markup=back_menu())
+        await call.message.edit_text("⌛ زمان تصمیم‌گیری این شکار تمام شده است.\nبرای شکار بعدی دوباره «شکار» را بفرست.")
         await call.answer()
         return
 

@@ -1,6 +1,8 @@
 
 import asyncio
 from aiogram import Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from config import BOT_TOKEN
 from db import init_db, ensure_user
 from handlers.menu import router as menu_router
@@ -15,7 +17,7 @@ async def main():
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN environment variable is not set.")
     await init_db()
-    bot = ReplyingBot(BOT_TOKEN)
+    bot = ReplyingBot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
     dp.message.middleware(UserMiddleware())
     dp.callback_query.middleware(UserMiddleware())
