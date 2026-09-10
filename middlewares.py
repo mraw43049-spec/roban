@@ -53,7 +53,7 @@ class UserMiddleware(BaseMiddleware):
         await ensure_user(user)
 
         # هر دکمه فقط برای کاربری معتبر است که پیام ربات را گرفته است.
-        if isinstance(event, CallbackQuery) and event.message:
+        if isinstance(event, CallbackQuery) and event.message and not (event.data or "").startswith(("ruby_join:", "ruby_games", "ruby_cancel:")):
             owner = message_owners.get(event.message.message_id)
             # اگر ربات ری‌استارت شده باشد، مالکیت را از reply_to_message خود پیام ربات هم می‌خوانیم.
             if owner is None and event.message.reply_to_message and event.message.reply_to_message.from_user:
@@ -74,7 +74,7 @@ class UserMiddleware(BaseMiddleware):
                 "chat_id": event.chat.id,
             })
         elif isinstance(event, CallbackQuery):
-            owner = message_owners.get(event.message.message_id) if event.message else None
+            owner = None if (event.data or "").startswith(("ruby_join:", "ruby_games", "ruby_cancel:")) else (message_owners.get(event.message.message_id) if event.message else None)
             if owner is None and event.message and event.message.reply_to_message and event.message.reply_to_message.from_user:
                 original = event.message.reply_to_message
                 owner = (original.from_user.id, original.message_id, time.time())

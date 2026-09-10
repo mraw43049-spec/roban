@@ -10,6 +10,7 @@ from handlers.economy import router as economy_router
 from handlers.games import router as games_router
 from handlers.admin import router as admin_router
 from handlers.hunting import router as hunting_router
+from handlers.fox_ruby import router as fox_ruby_router
 from middlewares import ForceJoinMiddleware, UserMiddleware
 from bot import ReplyingBot
 
@@ -27,6 +28,7 @@ async def main():
     dp.include_router(economy_router)
     dp.include_router(games_router)
     dp.include_router(hunting_router)
+    dp.include_router(fox_ruby_router)
     dp.include_router(admin_router)
     await bot.delete_webhook(drop_pending_updates=True)
     print("Gorbaw bot is running", flush=True)

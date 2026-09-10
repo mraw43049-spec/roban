@@ -5,7 +5,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from db import (
     get_user, change_points, update_xp,
-    register_hoohoo, set_hunt_time, level_up_to_next, add_inventory_item
+    register_hoohoo, set_hunt_time, level_up_to_next, add_inventory_item, get_fox, feed_fox
 )
 from keyboards import back_menu, catch_kb
 
@@ -207,9 +207,14 @@ async def catch_decision(call: CallbackQuery):
         await add_inventory_item(uid, f"{emoji} {name}", 1)
         text = f"🧊 {emoji} {name} رو گذاشتی تو یخچال روبی."
     elif action == "fox":
-        xp = food * FOX_XP_PER_FOOD
-        await update_xp(uid, xp)
-        text = f"🦊 روباه {emoji} {name} رو با اشتها خورد!\n✨ +{xp} XP"
+        fox = await get_fox(uid)
+        if not fox:
+            text = "🔒 اول باید در لول ۳ روباه را با ۱۰۰ روب‌پوینت بخری."
+        else:
+            ok, earned, hunger = await feed_fox(uid, f"{emoji} {name}", food)
+            text = (f"🦊 روباه {emoji} {name} رو خورد!\n"
+                    f"🍗 شکم روباه: {hunger}/100\n"
+                    f"🏅 روب‌پوینت ذخیره‌شده برای روباه: +{earned}") if ok else "❌ تغذیه روباه انجام نشد."
     elif action == "sell":
         price = food * HUNT_SELL_PER_FOOD
         await change_points(uid, price)

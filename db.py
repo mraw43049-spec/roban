@@ -71,6 +71,27 @@ CREATE TABLE IF NOT EXISTS raffle_entries(
  user_id INTEGER NOT NULL,
  PRIMARY KEY(raffle_id,user_id)
 );
+
+CREATE TABLE IF NOT EXISTS foxes(
+ user_id INTEGER PRIMARY KEY,
+ name TEXT NOT NULL DEFAULT 'روباه من',
+ level INTEGER NOT NULL DEFAULT 1,
+ hunger INTEGER NOT NULL DEFAULT 100,
+ stored_points INTEGER NOT NULL DEFAULT 0,
+ feed_count INTEGER NOT NULL DEFAULT 0,
+ created_at INTEGER DEFAULT (strftime('%s','now'))
+);
+
+CREATE TABLE IF NOT EXISTS ruby_games(
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ creator_id INTEGER NOT NULL,
+ joiner_id INTEGER DEFAULT NULL,
+ stake INTEGER NOT NULL,
+ status TEXT NOT NULL DEFAULT 'open',
+ winner_id INTEGER DEFAULT NULL,
+ created_at INTEGER DEFAULT (strftime('%s','now')),
+ finished_at INTEGER DEFAULT NULL
+);
 """
 
 DEFAULT_FRAMES = [
@@ -337,3 +358,128 @@ async def add_inventory_item(uid, item, qty=1):
             (uid, item, qty, qty)
         )
         await db.commit()
+
+
+# ---------- روباه ----------
+async def get_fox(uid):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        return await (await db.execute("SELECT * FROM foxes WHERE user_id=?", (uid,))).fetchone()
+
+async def buy_fox(uid, price=100):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN IMMEDIATE")
+        u = await (await db.execute("SELECT points,level FROM users WHERE user_id=?", (uid,))).fetchone()
+        fox = await (await db.execute("SELECT user_id FROM foxes WHERE user_id=?", (uid,))).fetchone()
+        if not u or fox:
+            await db.rollback(); return False, "owned"
+        if u[1] < 3:
+            await db.rollback(); return False, "level"
+        if u[0] < price:
+            await db.rollback(); return False, "points"
+        await db.execute("UPDATE users SET points=points-? WHERE user_id=?", (price, uid))
+        await db.execute("INSERT INTO foxes(user_id,name,level,hunger,stored_points,feed_count) VALUES(?,?,?,?,?,?)", (uid, "روباه من", 1, 100, 0, 0))
+        await db.commit(); return True, "ok"
+
+async def rename_fox(uid, name):
+    name = (name or "").strip()
+    if not 2 <= len(name) <= 24:
+        return False
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("UPDATE foxes SET name=? WHERE user_id=?", (name, uid))
+        await db.commit()
+        return cur.rowcount > 0
+
+async def upgrade_fox(uid):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN IMMEDIATE")
+        u = await (await db.execute("SELECT points,level FROM users WHERE user_id=?", (uid,))).fetchone()
+        f = await (await db.execute("SELECT level FROM foxes WHERE user_id=?", (uid,))).fetchone()
+        if not u or not f:
+            await db.rollback(); return False, "missing", None
+        if f[0] >= u[1]:
+            await db.rollback(); return False, "locked", f[0]
+        cost = 50 * f[0]
+        if u[0] < cost:
+            await db.rollback(); return False, "points", f[0]
+        new_level = f[0] + 1
+        await db.execute("UPDATE users SET points=points-? WHERE user_id=?", (cost, uid))
+        await db.execute("UPDATE foxes SET level=? WHERE user_id=?", (new_level, uid))
+        await db.commit(); return True, "ok", new_level
+
+async def feed_fox(uid, food_name, food_value):
+    # هر واحد غذا ۱۰ واحد سیری و ۵ روب پوینت برای روباه ایجاد می‌کند.
+    food_value = max(1, int(food_value))
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN IMMEDIATE")
+        f = await (await db.execute("SELECT hunger,stored_points,feed_count FROM foxes WHERE user_id=?", (uid,))).fetchone()
+        if not f:
+            await db.rollback(); return False, 0, 0
+        hunger = min(100, f[0] + food_value * 10)
+        earned = food_value * 5
+        stored = f[1] + earned
+        await db.execute("UPDATE foxes SET hunger=?,stored_points=?,feed_count=feed_count+1 WHERE user_id=?", (hunger, stored, uid))
+        await db.commit(); return True, earned, hunger
+
+async def withdraw_fox_points(uid):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN IMMEDIATE")
+        f = await (await db.execute("SELECT stored_points FROM foxes WHERE user_id=?", (uid,))).fetchone()
+        if not f or f[0] <= 0:
+            await db.rollback(); return 0
+        amount = f[0]
+        await db.execute("UPDATE foxes SET stored_points=0 WHERE user_id=?", (uid,))
+        await db.execute("UPDATE users SET points=points+? WHERE user_id=?", (amount, uid))
+        await db.commit(); return amount
+
+# ---------- بازی روبی ----------
+async def create_ruby_game(uid, stake):
+    stake = int(stake)
+    if stake <= 0 or stake > 500_000:
+        return False, "amount", None
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN IMMEDIATE")
+        u = await (await db.execute("SELECT points,level FROM users WHERE user_id=?", (uid,))).fetchone()
+        if not u or u[1] < 3:
+            await db.rollback(); return False, "level", None
+        if u[0] < stake:
+            await db.rollback(); return False, "points", None
+        open_game = await (await db.execute("SELECT id FROM ruby_games WHERE creator_id=? AND status='open'", (uid,))).fetchone()
+        if open_game:
+            await db.rollback(); return False, "existing", open_game[0]
+        await db.execute("UPDATE users SET points=points-? WHERE user_id=?", (stake, uid))
+        cur = await db.execute("INSERT INTO ruby_games(creator_id,stake,status) VALUES(?,?, 'open')", (uid, stake))
+        gid = cur.lastrowid
+        await db.commit(); return True, "ok", gid
+
+async def list_open_ruby_games():
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        return await (await db.execute("SELECT * FROM ruby_games WHERE status='open' ORDER BY id DESC LIMIT 20")).fetchall()
+
+async def join_ruby_game(uid, game_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN IMMEDIATE")
+        game = await (await db.execute("SELECT * FROM ruby_games WHERE id=? AND status='open'", (game_id,))).fetchone()
+        u = await (await db.execute("SELECT points,level FROM users WHERE user_id=?", (uid,))).fetchone()
+        if not game or not u: await db.rollback(); return False, "not_found", None
+        if game[1] == uid: await db.rollback(); return False, "self", None
+        if u[1] < 2: await db.rollback(); return False, "level", None
+        if u[0] < game[3]: await db.rollback(); return False, "points", game[3]
+        await db.execute("UPDATE users SET points=points-? WHERE user_id=?", (game[3], uid))
+        import random as _random
+        winner = _random.choice([game[1], uid])
+        pot = game[3] * 2
+        await db.execute("UPDATE users SET points=points+? WHERE user_id=?", (pot, winner))
+        await db.execute("UPDATE ruby_games SET joiner_id=?,winner_id=?,status='finished',finished_at=? WHERE id=?", (uid,winner,int(time.time()),game_id))
+        await db.commit(); return True, "ok", (winner, pot, game[1], uid)
+
+async def cancel_ruby_game(uid, game_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN IMMEDIATE")
+        game = await (await db.execute("SELECT creator_id,stake FROM ruby_games WHERE id=? AND status='open'", (game_id,))).fetchone()
+        if not game or game[0] != uid:
+            await db.rollback(); return False
+        await db.execute("UPDATE users SET points=points+? WHERE user_id=?", (game[1],uid))
+        await db.execute("UPDATE ruby_games SET status='cancelled',finished_at=? WHERE id=?", (int(time.time()),game_id))
+        await db.commit(); return True
