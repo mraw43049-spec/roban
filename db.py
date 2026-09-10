@@ -277,3 +277,32 @@ async def add_inventory_item(uid, item, qty=1):
             (uid, item, qty, qty)
         )
         await db.commit()
+
+async def admin_set_level(uid, delta):
+    """Directly bump/drop a user's level by delta (admin override), keeping xp consistent."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        row = await (await db.execute("SELECT level FROM users WHERE user_id=?", (uid,))).fetchone()
+        if not row:
+            return None
+        new_level = max(1, row["level"] + delta)
+        new_xp = (new_level - 1) * 100
+        await db.execute("UPDATE users SET level=?, xp=? WHERE user_id=?", (new_level, new_xp, uid))
+        await db.commit()
+        return new_level
+
+async def get_all_user_ids():
+    async with aiosqlite.connect(DB_PATH) as db:
+        rows = await (await db.execute("SELECT user_id FROM users")).fetchall()
+        return [r[0] for r in rows]
+
+async def get_bot_stats():
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        row = await (await db.execute(
+            "SELECT COUNT(*) as cnt, COALESCE(SUM(coins),0) as coins, "
+            "COALESCE(SUM(points),0) as points, COALESCE(SUM(xp),0) as xp, "
+            "COALESCE(AVG(level),0) as avg_level, COALESCE(MAX(level),0) as max_level "
+            "FROM users"
+        )).fetchone()
+        return dict(row)
