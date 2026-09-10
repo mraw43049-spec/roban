@@ -1,10 +1,12 @@
 
 import time
 import random
+import uuid
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from db import (
-    get_user, set_daily, change_coins, spend_coins, update_xp, transfer,
+    get_user, set_daily, change_coins, spend_coins, update_xp, transfer_points,
     list_frames, buy_frame, set_active_frame, disable_frame, get_active_frame,
     mission_progress, get_missions, claim_mission, change_points
 )
@@ -157,35 +159,128 @@ async def mission_claim_button(call: CallbackQuery):
     await call.message.answer(f"🎁 {total} سکه به‌عنوان پاداش ماموریت دریافت شد." if total else "❌ ماموریت آماده‌ای برای دریافت نداری.", reply_markup=missions_kb())
     await call.answer()
 
+pending_transfers = {}
+TRANSFER_MAX = 500_000
+TRANSFER_MIN_LEVEL = 2
+TRANSFER_EXPIRE = 60
+
+def transfer_kb(token):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ تایید", callback_data=f"tr_ok:{token}"),
+         InlineKeyboardButton(text="❌ لغو", callback_data=f"tr_cancel:{token}")]
+    ])
+
+async def bank_text(uid):
+    u = await get_user(uid)
+    return (
+        f"💳 <b>بانک و انتقال روب پوینت</b>\n\n"
+        f"🏅 روب پوینت: {u['points']:,}\n⭐ لول: {u['level']}\n\n"
+        "برای انتقال، روی پیام کاربر مقصد ریپلای کن و بنویس:\n"
+        "<code>انتقال 50 روب پوینت</code>\n\n"
+        "🔒 انتقال از لول ۲ باز است.\n"
+        f"📌 سقف هر انتقال: {TRANSFER_MAX:,} روب پوینت\n"
+        "⏱️ تایید انتقال فقط ۶۰ ثانیه معتبر است."
+    )
+
+@router.callback_query(F.data == "bank")
 @router.callback_query(F.data == "bank")
 async def bank_button(call: CallbackQuery):
-    u = await get_user(call.from_user.id)
-    await call.message.answer(
-        f"💳 <b>بانک و انتقال</b>\n\n🪙 موجودی: {u['coins']} سکه\n\n"
-        f"برای انتقال:\n<code>/pay USER_ID AMOUNT</code>\n\n"
-        f"مثال: <code>/pay 123456789 500</code>",
-        reply_markup=back_menu()
-    )
+    await call.message.answer(await bank_text(call.from_user.id), reply_markup=back_menu())
     await call.answer()
 
 @router.message(F.text == "/bank")
 async def bank_cmd(message: Message):
-    u = await get_user(message.from_user.id)
+    await message.answer(await bank_text(message.from_user.id), reply_markup=back_menu())
+
+def _transfer_amount(text):
+    parts = (text or "").strip().split()
+    if len(parts) >= 2 and parts[0] == "انتقال":
+        try:
+            return int(parts[1])
+        except ValueError:
+            return None
+    if len(parts) == 3 and parts[0] == "/pay":
+        try:
+            return int(parts[2])
+        except ValueError:
+            return None
+    return None
+
+@router.message(F.text.func(lambda t: (t or "").strip().startswith("انتقال ")))
+async def transfer_command(message: Message):
+    uid = message.from_user.id
+    u = await get_user(uid)
+    if u["level"] < TRANSFER_MIN_LEVEL:
+        return await message.answer("🔒 انتقال روب پوینت از لول ۲ باز می‌شود.", reply_markup=back_menu())
+
+    if not message.reply_to_message or not message.reply_to_message.from_user:
+        return await message.answer(
+            "❌ برای انتقال باید روی پیام خودِ کاربر مقصد ریپلای کنی.\n"
+            "مثال: روی پیامش ریپلای کن و بنویس «انتقال 50 روب پوینت».",
+            reply_markup=back_menu()
+        )
+
+    target = message.reply_to_message.from_user
+    target_id = target.id
+    if target_id == uid:
+        return await message.answer("❌ نمی‌توانی به خودت انتقال بدهی.", reply_markup=back_menu())
+
+    amount = _transfer_amount(message.text)
+    if amount is None or amount <= 0:
+        return await message.answer("❌ مبلغ نامعتبر است.", reply_markup=back_menu())
+    if amount > TRANSFER_MAX:
+        return await message.answer(f"❌ سقف هر انتقال {TRANSFER_MAX:,} روب پوینت است.", reply_markup=back_menu())
+
+    recipient = await get_user(target_id)
+    if not recipient:
+        return await message.answer("❌ کاربر مقصد هنوز ربات را فعال نکرده است.", reply_markup=back_menu())
+    if u["points"] < amount:
+        return await message.answer(f"❌ موجودی کافی نیست.\n🏅 موجودی: {u['points']:,}", reply_markup=back_menu())
+
+    token = uuid.uuid4().hex[:12]
+    pending_transfers[token] = {
+        "sender": uid, "receiver": target_id, "amount": amount,
+        "created": int(time.time()), "message_id": message.message_id
+    }
     await message.answer(
-        f"💳 <b>بانک</b>\n\n🪙 موجودی: {u['coins']} سکه\n\n"
-        "انتقال: /pay USER_ID AMOUNT",
-        reply_markup=back_menu()
+        f"💸 <b>تأیید انتقال</b>\n\n"
+        f"👤 مقصد: {target.first_name or 'کاربر'}\n"
+        f"🏅 مبلغ: {amount:,} روب پوینت\n\n"
+        "این انتقال تا ۶۰ ثانیه معتبر است.",
+        reply_markup=transfer_kb(token)
     )
 
-@router.message(F.text.startswith("/pay "))
-async def pay(message: Message):
-    try:
-        _, uid, amount = message.text.split()
-        amount = int(amount)
-        ok = await transfer(message.from_user.id, int(uid), amount)
-    except Exception:
-        ok = False
-    await message.answer("✅ انتقال انجام شد." if ok else "❌ انتقال ناموفق بود. شناسه، مبلغ و موجودی را بررسی کن.")
+@router.callback_query(F.data.startswith("tr_"))
+async def transfer_decision(call: CallbackQuery):
+    _, action, token = call.data.split(":", 2)
+    item = pending_transfers.get(token)
+    if not item:
+        await call.answer("⌛ زمان این انتقال تمام شده.", show_alert=True)
+        return
+    if int(time.time()) - item["created"] > TRANSFER_EXPIRE:
+        pending_transfers.pop(token, None)
+        await call.message.edit_text("⌛ زمان تأیید انتقال تمام شد.")
+        await call.answer()
+        return
+    if call.from_user.id != item["sender"]:
+        await call.answer("⛔ این انتقال برای کاربر دیگری است.", show_alert=True)
+        return
+
+    pending_transfers.pop(token, None)
+    if action == "cancel":
+        await call.message.edit_text("❌ انتقال لغو شد.")
+        await call.answer("لغو شد")
+        return
+
+    ok, _ = await transfer_points(item["sender"], item["receiver"], item["amount"])
+    if not ok:
+        await call.message.edit_text("❌ انتقال انجام نشد؛ موجودی یا شرایط انتقال تغییر کرده است.")
+        await call.answer()
+        return
+    await call.message.edit_text(
+        f"✅ انتقال انجام شد.\n🏅 {item['amount']:,} روب پوینت به کاربر مقصد منتقل شد."
+    )
+    await call.answer("انتقال انجام شد")
 
 async def market_action(target, uid):
     await mission_progress(uid, "market", 1, 1)

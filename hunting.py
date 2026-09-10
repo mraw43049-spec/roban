@@ -1,6 +1,7 @@
 
 import time
 import random
+import asyncio
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from db import (
@@ -19,13 +20,21 @@ HOOHOO_MAX_REWARD = 5
 LEVEL_UP_EVERY = 5               # هر ۵ هوهو یک لول
 LEVEL_UP_BONUS_POINTS = 20
 
+# قابلیت‌هایی که با رسیدن به هر لول باز می‌شن (برای پیام تبریک)
+LEVEL_UNLOCKS = {
+    2: ["🏹 شکار", "🎮 پیوستن به بازی", "📥 دریافت انتقال"],
+    3: ["🦊 روباه", "🛠 ساخت بازی", "🔁 انتقال روب پوینت"],
+    4: ["🏦 بانک", "🎰 پیوستن به کازینو"],
+    5: ["🏗 ساخت کازینو"],
+}
+
 # --- شکار ---
 HUNT_KEY = "شکار"
 HUNT_COOLDOWN = 900              # 15 دقیقه
 HUNT_MIN_LEVEL = 2
 HUNT_SELL_PER_FOOD = 4           # روب پوینت به ازای هر واحد ارزش غذایی
 FOX_XP_PER_FOOD = 5
-CATCH_EXPIRE = 300               # 5 دقیقه فرصت برای تصمیم‌گیری
+CATCH_EXPIRE = 60               # 5 دقیقه فرصت برای تصمیم‌گیری
 
 ANIMALS = [
     {"name": "خرگوش", "emoji": "🐇", "food": 2},
@@ -42,9 +51,9 @@ def _norm(text):
     return (text or "").strip().replace(" ", "").replace("\u200c", "")
 
 
-def _fmt_remain(seconds):
+def _fmt_mmss(seconds):
     seconds = max(0, int(seconds))
-    return f"{seconds // 60} دقیقه و {seconds % 60} ثانیه"
+    return f"{seconds // 60}:{seconds % 60:02d}"
 
 
 async def hoohoo_action(target, uid):
@@ -53,16 +62,20 @@ async def hoohoo_action(target, uid):
     remain = HOOHOO_COOLDOWN - (now - (u["last_hoohoo"] or 0))
     if remain > 0:
         await target.answer(
-            f"🦊 هنوز زوده! برای هوهوی بعدی {_fmt_remain(remain)} صبر کن.",
-            reply_markup=back_menu()
+            f"🦊 هنوز زوده!\n⏳ بعد از {_fmt_mmss(remain)} دیگه میتونی دوباره هو هو کنی"
         )
         return
 
     reward = random.randint(HOOHOO_MIN_REWARD, HOOHOO_MAX_REWARD)
     await change_points(uid, reward)
     count = await register_hoohoo(uid, now)
+    u2 = await get_user(uid)
 
-    text = f"🦊 هوهو! 🏅 +{reward} روب پوینت گرفتی.\n📊 مجموع هوهوها: {count}"
+    text = (
+        f"🐾 {reward} روب پوینت 🦊 گرفتی\n"
+        f"🏆 روب پوینت هات: {u2['points']}\n\n"
+        f"⏳ بعد از {_fmt_mmss(HOOHOO_COOLDOWN)} دیگه میتونی دوباره هو هو کنی"
+    )
 
     if count % LEVEL_UP_EVERY == 0:
         new_level = await level_up_to_next(uid)
@@ -71,8 +84,11 @@ async def hoohoo_action(target, uid):
             f"\n\n🎉🎉 تبریک میگم! به لول {new_level} رسیدی!\n"
             f"🎁 جایزه ارتقای سطح: +{LEVEL_UP_BONUS_POINTS} روب پوینت"
         )
+        unlocks = LEVEL_UNLOCKS.get(new_level)
+        if unlocks:
+            text += "\n\n🔓 این قابلیت‌های جدید برات باز شد:\n" + "\n".join(f"┘─ {u}" for u in unlocks)
 
-    await target.answer(text, reply_markup=back_menu())
+    await target.answer(text)
 
 
 @router.message(F.text.func(lambda t: _norm(t) in HOOHOO_KEYS))
@@ -99,7 +115,7 @@ async def hunt_action(target, uid):
     remain = HUNT_COOLDOWN - (now - (u["last_hunt"] or 0))
     if remain > 0:
         await target.answer(
-            f"🏹 هنوز زوده! برای شکار بعدی {_fmt_remain(remain)} صبر کن.",
+            f"🏹 هنوز زوده! برای شکار بعدی {_fmt_mmss(remain)} صبر کن.",
             reply_markup=back_menu()
         )
         return
@@ -108,13 +124,46 @@ async def hunt_action(target, uid):
     await set_hunt_time(uid, now)
     pending_catches[uid] = {**animal, "ts": now}
 
-    await target.answer(
-        f"🏹 شکار موفق!\n\n{animal['emoji']} {animal['name']} گیرت اومد.\n"
-        f"🍗 ارزش غذایی: {animal['food']}\n\n"
-        "می‌خوای باهاش چیکار کنی؟",
-        reply_markup=catch_kb()
-    )
+    msg = await target.answer(f"{animal['emoji']}")
+    # Telegram cannot animate arbitrary Unicode emoji through the Bot API, so
+    # animate the same emoji by editing the message several times.
+    for suffix in (" ✨", " ✨✨", " 💫", " ✨"):
+        await asyncio.sleep(0.35)
+        try:
+            await msg.edit_text(f"{animal['emoji']}{suffix}")
+        except Exception:
+            pass
+    await asyncio.sleep(0.35)
 
+    try:
+        await msg.edit_text(
+            f"{animal['emoji']}\n\n"
+            f"شما {animal['emoji']} {animal['name']} شکار کردید!\n"
+            f"🍗 ارزش غذایی: {animal['food']}\n\n"
+            "می‌خوای باهاش چیکار کنی؟",
+            reply_markup=catch_kb()
+        )
+    except Exception:
+        await target.answer(
+            f"{animal['emoji']}\n\n"
+            f"شما {animal['emoji']} {animal['name']} شکار کردید!\n"
+            f"🍗 ارزش غذایی: {animal['food']}\n\n"
+            "می‌خوای باهاش چیکار کنی؟",
+            reply_markup=catch_kb()
+        )
+
+
+
+    async def expire_catch():
+        await asyncio.sleep(CATCH_EXPIRE)
+        item = pending_catches.get(uid)
+        if item and item.get("ts") == now:
+            pending_catches.pop(uid, None)
+            try:
+                await msg.edit_text("⌛ فرصت شکار تمام شد.")
+            except Exception:
+                pass
+    asyncio.create_task(expire_catch())
 
 @router.message(F.text.func(lambda t: _norm(t) == HUNT_KEY))
 async def hunt_message(message: Message):

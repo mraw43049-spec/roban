@@ -159,6 +159,53 @@ async def transfer(sender, receiver, amount):
         await db.commit()
         return True
 
+
+async def transfer_points(sender, receiver, amount):
+    """Atomic روب پوینت transfer with a hard per-transfer limit."""
+    MAX_TRANSFER = 500_000
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("BEGIN IMMEDIATE")
+        a = await (await db.execute("SELECT points FROM users WHERE user_id=?", (sender,))).fetchone()
+        b = await (await db.execute("SELECT user_id FROM users WHERE user_id=?", (receiver,))).fetchone()
+        if not a or not b or amount <= 0 or amount > MAX_TRANSFER or sender == receiver or a[0] < amount:
+            await db.rollback()
+            return False, "invalid"
+        await db.execute("UPDATE users SET points=points-? WHERE user_id=?", (amount, sender))
+        await db.execute("UPDATE users SET points=points+? WHERE user_id=?", (amount, receiver))
+        await db.commit()
+        return True, "ok"
+
+async def set_points(uid, value):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET points=MAX(0,?) WHERE user_id=?", (int(value), uid))
+        await db.commit()
+
+async def set_level(uid, level):
+    level = max(1, int(level))
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET level=? WHERE user_id=?", (level, uid))
+        await db.commit()
+
+async def get_user_ids():
+    async with aiosqlite.connect(DB_PATH) as db:
+        rows = await (await db.execute("SELECT user_id FROM users ORDER BY user_id")).fetchall()
+        return [r[0] for r in rows]
+
+async def bot_stats():
+    async with aiosqlite.connect(DB_PATH) as db:
+        row = await (await db.execute("""
+            SELECT COUNT(*), COALESCE(SUM(coins),0), COALESCE(SUM(points),0),
+                   COALESCE(MAX(level),1)
+            FROM users
+        """)).fetchone()
+        frames = (await (await db.execute("SELECT COUNT(*) FROM user_frames")).fetchone())[0]
+        inventory = (await (await db.execute("SELECT COALESCE(SUM(quantity),0) FROM inventory")).fetchone())[0]
+        missions = (await (await db.execute("SELECT COUNT(*) FROM missions")).fetchone())[0]
+        return {
+            "users": row[0], "coins": row[1], "points": row[2], "max_level": row[3],
+            "frame_ownerships": frames, "inventory_items": inventory, "missions": missions
+        }
+
 async def list_frames(uid=None):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -277,32 +324,3 @@ async def add_inventory_item(uid, item, qty=1):
             (uid, item, qty, qty)
         )
         await db.commit()
-
-async def admin_set_level(uid, delta):
-    """Directly bump/drop a user's level by delta (admin override), keeping xp consistent."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        row = await (await db.execute("SELECT level FROM users WHERE user_id=?", (uid,))).fetchone()
-        if not row:
-            return None
-        new_level = max(1, row["level"] + delta)
-        new_xp = (new_level - 1) * 100
-        await db.execute("UPDATE users SET level=?, xp=? WHERE user_id=?", (new_level, new_xp, uid))
-        await db.commit()
-        return new_level
-
-async def get_all_user_ids():
-    async with aiosqlite.connect(DB_PATH) as db:
-        rows = await (await db.execute("SELECT user_id FROM users")).fetchall()
-        return [r[0] for r in rows]
-
-async def get_bot_stats():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        row = await (await db.execute(
-            "SELECT COUNT(*) as cnt, COALESCE(SUM(coins),0) as coins, "
-            "COALESCE(SUM(points),0) as points, COALESCE(SUM(xp),0) as xp, "
-            "COALESCE(AVG(level),0) as avg_level, COALESCE(MAX(level),0) as max_level "
-            "FROM users"
-        )).fetchone()
-        return dict(row)

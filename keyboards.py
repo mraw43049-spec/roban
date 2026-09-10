@@ -11,6 +11,7 @@ def join_kb():
 def main_menu():
     items = [
         ("❓ شروع و دستورات","help"),("⭐ سطح کاربران","level"),
+        ("🏆 رتبه‌بندی","ranking"),
         ("🦊 روبی و تولید","breeding"),("🪰 حشرات و یخچال","insects"),
         ("💳 بانک و انتقال","bank"),("👑 شهر روبی 🦊","city"),
         ("🎴 کازینو و بازی","games"),("🎲 شرط‌بندی فوتبال","football"),
@@ -23,11 +24,13 @@ def main_menu():
         ("🔄 چرخ شانس","wheel"),("🏅 ماموریت‌ها","missions"),
         ("🦊 هوهو (روب پوینت)","hoohoo"),("🏹 شکار","hunt"),
     ]
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=items[i][0], callback_data=items[i][1]),
-         InlineKeyboardButton(text=items[i+1][0], callback_data=items[i+1][1])]
-        for i in range(0, len(items), 2)
-    ])
+    rows = []
+    for i in range(0, len(items), 2):
+        row = [InlineKeyboardButton(text=items[i][0], callback_data=items[i][1])]
+        if i + 1 < len(items):
+            row.append(InlineKeyboardButton(text=items[i+1][0], callback_data=items[i+1][1]))
+        rows.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 def back_menu():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -112,11 +115,11 @@ def wheel_kb():
     ])
 
 def catch_kb():
+    # Hunting is intentionally isolated: no main-menu button while deciding.
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🧊 گذاشتن در یخچال روبی", callback_data="catch:fridge")],
         [InlineKeyboardButton(text="🦊 دادن به روباه", callback_data="catch:fox")],
-        [InlineKeyboardButton(text="💰 فروختن", callback_data="catch:sell")],
-        [InlineKeyboardButton(text="🔙 منو", callback_data="menu")]
+        [InlineKeyboardButton(text="💰 فروختن", callback_data="catch:sell")]
     ])
 
 def ttt_kb(board):
